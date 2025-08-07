@@ -47,6 +47,7 @@ function weightToKg(value, unit) {
 /**
  * Dimensions-Parser:
  * - akzeptiert "L×B×H", "LxBxH", "40X40X42", "30x20x10 mm", etc.
+ * - unterstützt auch Zylinder-Formate: "D×H", "DxH", "20x30 mm" (Durchmesser x Höhe)
  * - Ergebnis in mm (falls Einheiten erkennbar), sonst roh.
  */
 function parseDimensionsToLBH(text) {
@@ -65,11 +66,24 @@ function parseDimensionsToLBH(text) {
 
   // 2) Bis zu 3 Zahlen extrahieren - verbesserte Regex für verschiedene Formate
   const nums = (s.match(/-?\d+(?:\.\d+)?/g) || []).map(parseFloat);
-  const [L,B,H] = nums.map(n => n != null ? Math.round(n * scale) : null);
-
-  // Debug-Logging (kann später entfernt werden)
-  if (raw && (L != null || B != null || H != null)) {
-    console.log(`Parsed dimensions: "${raw}" -> L:${L}, B:${B}, H:${H}`);
+  
+  let L, B, H;
+  
+  if (nums.length === 2) {
+    // Zylinder-Format: Durchmesser x Höhe
+    // Durchmesser = Breite (B), Höhe = Höhe (H), Länge = null
+    L = null;
+    B = nums[0] != null ? Math.round(nums[0] * scale) : null;
+    H = nums[1] != null ? Math.round(nums[1] * scale) : null;
+    console.log(`Parsed cylinder dimensions: "${raw}" -> Durchmesser:${B}, Höhe:${H}`);
+  } else if (nums.length === 3) {
+    // Quader-Format: Länge x Breite x Höhe
+    [L, B, H] = nums.map(n => n != null ? Math.round(n * scale) : null);
+    console.log(`Parsed cuboid dimensions: "${raw}" -> L:${L}, B:${B}, H:${H}`);
+  } else {
+    // Unbekanntes Format
+    L = B = H = null;
+    console.log(`Unknown dimension format: "${raw}"`);
   }
 
   return { L, B, H };
