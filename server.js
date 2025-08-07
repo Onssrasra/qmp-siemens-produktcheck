@@ -47,7 +47,13 @@ function eqText(a,b) {
   const B = String(b).trim().toLowerCase().replace(/\s+/g,' ');
   return A === B;
 }
-function eqPart(a,b) { return normPartNo(a) === normPartNo(b); }
+function eqPart(a,b) { 
+  const normA = normPartNo(a);
+  const normB = normPartNo(b);
+  const result = normA === normB;
+  console.log(`eqPart: "${a}" -> "${normA}", "${b}" -> "${normB}" -> ${result}`);
+  return result;
+}
 function eqN(a,b) { return normalizeNCode(a) === normalizeNCode(b); }
 function eqDim(exU, exV, exW, webTxt) {
   const L = toNumber(exU), B = toNumber(exV), H = toNumber(exW);
@@ -126,18 +132,29 @@ app.post('/api/process-excel', upload.single('file'), async (req, res) => {
 
         // 3.1 Z (immer A2V)
         ws.getCell(`${COLS.Z}${webRow}`).value = a2v;
-        // Spalte Z wird nicht verglichen, daher rot markieren
-        fillColor(ws, `${COLS.Z}${webRow}`, 'red');
+        // Spalte Z wird mit der A2V-Nummer verglichen
+        const excelZ = (ws.getCell(`${COLS.Z}${r}`).value || '').toString().trim().toUpperCase();
+        const isEqual = eqPart(excelZ, a2v);
+        console.log(`Comparing Z (A2V): "${excelZ}" with "${a2v}" -> ${isEqual}`);
+        fillColor(ws, `${COLS.Z}${webRow}`, isEqual ? 'green' : 'red');
 
         // 3.2 E – Weitere Artikelnummer (nur setzen, wenn gefunden)
         if (web['Weitere Artikelnummer'] && web['Weitere Artikelnummer'] !== 'Nicht gefunden') {
           const val = web['Weitere Artikelnummer'];
           ws.getCell(`${COLS.E}${webRow}`).value = val;
-          fillColor(ws, `${COLS.E}${webRow}`, eqPart(exE || '', val) ? 'green' : 'red');
+          // Vergleiche mit Excel-Wert oder A2V-Nummer
+          const excelVal = exE || a2v;
+          const isEqual = eqPart(excelVal, val);
+          console.log(`Comparing E: "${excelVal}" with "${val}" -> ${isEqual}`);
+          fillColor(ws, `${COLS.E}${webRow}`, isEqual ? 'green' : 'red');
         } else {
           // Wenn keine weitere Artikelnummer gefunden, A2V-Nummer verwenden
           ws.getCell(`${COLS.E}${webRow}`).value = a2v;
-          fillColor(ws, `${COLS.E}${webRow}`, 'red'); // Rot markieren da nicht gefunden
+          // Vergleiche mit Excel-Wert oder A2V-Nummer
+          const excelVal = exE || a2v;
+          const isEqual = eqPart(excelVal, a2v);
+          console.log(`Comparing E (A2V): "${excelVal}" with "${a2v}" -> ${isEqual}`);
+          fillColor(ws, `${COLS.E}${webRow}`, isEqual ? 'green' : 'red');
         }
 
         // 3.3 C – Produkttitel
@@ -162,18 +179,45 @@ app.post('/api/process-excel', upload.single('file'), async (req, res) => {
         // 3.5 U/V/W – Abmessungen
         if (web.Abmessung && web.Abmessung !== 'Nicht gefunden') {
           const d = parseDimensionsToLBH(web.Abmessung);
-          if (d.L != null) ws.getCell(`${COLS.U}${webRow}`).value = d.L;
-          if (d.B != null) ws.getCell(`${COLS.V}${webRow}`).value = d.B;
-          if (d.H != null) ws.getCell(`${COLS.W}${webRow}`).value = d.H;
-          const ok = eqDim(exU, exV, exW, web.Abmessung);
-          if (d.L != null) fillColor(ws, `${COLS.U}${webRow}`, ok ? 'green' : 'red');
-          if (d.B != null) fillColor(ws, `${COLS.V}${webRow}`, ok ? 'green' : 'red');
-          if (d.H != null) fillColor(ws, `${COLS.W}${webRow}`, ok ? 'green' : 'red');
+          
+          // Länge (U)
+          if (d.L != null) {
+            ws.getCell(`${COLS.U}${webRow}`).value = d.L;
+            const excelL = toNumber(exU);
+            if (excelL != null) {
+              const isEqual = excelL === d.L;
+              console.log(`Comparing U (Länge): ${excelL} with ${d.L} -> ${isEqual}`);
+              fillColor(ws, `${COLS.U}${webRow}`, isEqual ? 'green' : 'red');
+            }
+            // Wenn kein Excel-Wert vorhanden, nicht markieren (leer lassen)
+          }
+          
+          // Breite (V)
+          if (d.B != null) {
+            ws.getCell(`${COLS.V}${webRow}`).value = d.B;
+            const excelB = toNumber(exV);
+            if (excelB != null) {
+              const isEqual = excelB === d.B;
+              console.log(`Comparing V (Breite): ${excelB} with ${d.B} -> ${isEqual}`);
+              fillColor(ws, `${COLS.V}${webRow}`, isEqual ? 'green' : 'red');
+            }
+            // Wenn kein Excel-Wert vorhanden, nicht markieren (leer lassen)
+          }
+          
+          // Höhe (W)
+          if (d.H != null) {
+            ws.getCell(`${COLS.W}${webRow}`).value = d.H;
+            const excelH = toNumber(exW);
+            if (excelH != null) {
+              const isEqual = excelH === d.H;
+              console.log(`Comparing W (Höhe): ${excelH} with ${d.H} -> ${isEqual}`);
+              fillColor(ws, `${COLS.W}${webRow}`, isEqual ? 'green' : 'red');
+            }
+            // Wenn kein Excel-Wert vorhanden, nicht markieren (leer lassen)
+          }
         } else {
-          // Wenn keine Abmessungen gefunden, rot markieren
-          fillColor(ws, `${COLS.U}${webRow}`, 'red');
-          fillColor(ws, `${COLS.V}${webRow}`, 'red');
-          fillColor(ws, `${COLS.W}${webRow}`, 'red');
+          // Wenn keine Abmessungen gefunden, leer lassen und nicht markieren
+          // (keine fillColor-Aufrufe)
         }
 
         // 3.6 P – Werkstoff (nur setzen, wenn gefunden)
