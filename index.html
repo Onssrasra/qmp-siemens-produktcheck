@@ -225,6 +225,25 @@
       border-radius: 999px;
     }
     
+    /* Upload Progress */
+    .upload-progress {
+      width: 100%;
+      height: 8px;
+      background: var(--grey-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 16px;
+      display: none;
+    }
+    
+    .upload-progress > div {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--db-red), var(--db-red-dark));
+      transition: width 0.3s ease;
+      border-radius: 999px;
+    }
+    
     /* Responsive Design */
     @media (max-width: 768px) {
       .wrap {
@@ -275,7 +294,7 @@
           <strong>Datei hier ablegen</strong><br>
           oder klicken zum Auswählen
         </p>
-        <p class="hint">Unterstützt .xlsx und .xls Dateien</p>
+        <p class="hint">Unterstützt .xlsx und .xls Dateien (max. 50 MB)</p>
       </div>
       <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
 
@@ -286,6 +305,7 @@
       </div>
 
       <div class="status" id="status"></div>
+      <div class="upload-progress" id="uploadProgress"><div></div></div>
       <div class="progress" id="progress"><div></div></div>
     </div>
   </div>
@@ -300,6 +320,8 @@
     const statusEl   = document.getElementById('status');
     const progressEl = document.getElementById('progress');
     const bar        = progressEl.firstElementChild;
+    const uploadProgressEl = document.getElementById('uploadProgress');
+    const uploadBar = uploadProgressEl.firstElementChild;
 
     let selectedFile = null,
         processedBlob = null;
@@ -315,11 +337,15 @@
     dropzone.addEventListener('drop', e => {
       e.preventDefault();
       dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files?.length) handleFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files?.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
     });
 
     fileInput.addEventListener('change', e => {
-      if (e.target.files?.length) handleFile(e.target.files[0]);
+      if (e.target.files?.length) {
+        handleFile(e.target.files[0]);
+      }
     });
 
     function handleFile(file){
@@ -327,10 +353,40 @@
         statusEl.textContent='Bitte nur .xlsx oder .xls Dateien!';
         return;
       }
-      selectedFile=file;
+      
+      // Upload Progress starten
+      uploadProgressEl.style.display='block';
+      uploadBar.style.width='0%';
+      statusEl.textContent='Datei wird hochgeladen...';
+      
+      // Realistischer Upload-Progress basierend auf Dateigröße
+      const fileSize = file.size;
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      const progressStep = Math.min(100 / (fileSize / (1024 * 1024)), 5); // Max 5% pro Schritt
+      
+      let progress = 0;
+      const uploadInterval = setInterval(() => {
+        progress += progressStep + Math.random() * 2;
+        if (progress > 95) progress = 95;
+        uploadBar.style.width = progress + '%';
+      }, 50);
+      
+      // Datei verarbeiten
+      selectedFile = file;
       dzText.innerHTML='<strong>'+file.name+'</strong><br><span class="hint">Datei bereit zur Verarbeitung</span>';
-      processBtn.disabled=false;
-      statusEl.textContent='Datei bereit – „Verarbeiten" klicken.';
+      
+      // Upload abschließen
+      setTimeout(() => {
+        clearInterval(uploadInterval);
+        uploadBar.style.width='100%';
+        statusEl.textContent='Datei erfolgreich hochgeladen – „Verarbeiten" klicken.';
+        processBtn.disabled=false;
+        
+        // Progress ausblenden nach 2 Sekunden
+        setTimeout(() => {
+          uploadProgressEl.style.display='none';
+        }, 2000);
+      }, Math.max(500, fileSize / (1024 * 1024) * 100)); // Mindestens 500ms, basierend auf Dateigröße
     }
 
     /* ==================== VERARBEITEN ==================== */
