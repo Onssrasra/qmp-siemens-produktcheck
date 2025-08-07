@@ -47,6 +47,7 @@ function weightToKg(value, unit) {
 /**
  * Dimensions-Parser:
  * - akzeptiert "L×B×H", "LxBxH", "40X40X42", "30x20x10 mm", etc.
+ * - Standard-Reihenfolge: Länge × Breite × Höhe (L×B×H)
  * - unterstützt auch Zylinder-Formate: "D×H", "DxH", "20x30 mm" (Durchmesser x Höhe)
  * - Ergebnis in mm (falls Einheiten erkennbar), sonst roh.
  */
@@ -77,9 +78,9 @@ function parseDimensionsToLBH(text) {
     H = nums[1] != null ? Math.round(nums[1] * scale) : null;
     console.log(`Parsed cylinder dimensions: "${raw}" -> Durchmesser:${B}, Höhe:${H}`);
   } else if (nums.length === 3) {
-    // Quader-Format: Länge x Breite x Höhe
+    // Quader-Format: Länge x Breite x Höhe (Standard-Reihenfolge)
     [L, B, H] = nums.map(n => n != null ? Math.round(n * scale) : null);
-    console.log(`Parsed cuboid dimensions: "${raw}" -> L:${L}, B:${B}, H:${H}`);
+    console.log(`Parsed cuboid dimensions: "${raw}" -> Länge:${L}, Breite:${B}, Höhe:${H}`);
   } else {
     // Unbekanntes Format
     L = B = H = null;
